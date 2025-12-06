@@ -7,24 +7,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "test": "jest --passWithNoTests",
-    "test:watch": "jest --watch",
-    "docker:build": "docker build -t desigo-frontend:latest -f ../../docker/frontend/Dockerfile ."
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@desigo/shared": "*",
-    "next": "^14.0.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@medusajs/ui": "^1.0.0",
-    "tailwindcss": "^3.3.0"
+    "next": "14.2.33",
+    "react": "18.3.0",
+    "react-dom": "18.3.0",
+    "@medusajs/ui": "2.3.0",
+    "@medusajs/medusa": "2.12.1",
+    "@medusajs/js-sdk": "2.12.1",
+    "tailwindcss": "^3.4.0",
+    "lucide-react": "^0.309.0"
   },
   "devDependencies": {
-    "@desigo/config-tsconfig": "*",
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "typescript": "^5.3.0"
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "typescript": "^5.6.2"
   }
 }
