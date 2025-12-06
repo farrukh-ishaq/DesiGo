@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: desigo-postgres
+    environment:
+      POSTGRES_USER: desigo
+      POSTGRES_PASSWORD: desigo123
+      POSTGRES_DB: desigo
+    ports:
+      - "5432:5432"
+    volumes:
+      - desigo_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U desigo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - desigo-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: desigo-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - desigo_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - desigo-network
+
+  backend:
+    build:
+      context: ./src/backend
+      dockerfile: ../../docker/backend/Dockerfile.dev
+    container_name: desigo-backend
+    ports:
+      - "9000:9000"
+    environment:
+      DATABASE_URL: postgresql://desigo:desigo123@postgres:5432/desigo
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+      JWT_SECRET: desigo-jwt-secret-change-in-production
+      COOKIE_SECRET: desigo-cookie-secret-change-in-production
+    volumes:
+      - ./src/backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - desigo-network
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: ../../docker/frontend/Dockerfile.dev
+    container_name: desigo-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:9000
+      NEXT_PUBLIC_API_URL: http://localhost:9000
+    volumes:
+      - ./src/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - desigo-network
+
+volumes:
+  desigo_postgres_data:
+  desigo_redis_data:
+
+networks:
+  desigo-network:
+    driver: bridge

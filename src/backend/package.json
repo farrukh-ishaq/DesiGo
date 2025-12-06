@@ -1,0 +1,37 @@
+{
+  "name": "@desigo/backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "medusa develop",
+    "start": "medusa start",
+    "build": "npm run build:ts && medusa build",
+    "build:ts": "tsc --project tsconfig.json",
+    "type-check": "tsc --noEmit",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "lint": "eslint src --ext .ts,.js",
+    "lint:fix": "eslint src --ext .ts,.js --fix",
+    "docker:build": "docker build -t desigo-backend:latest -f ../../docker/backend/Dockerfile .",
+    "db:migrate": "medusa migrations run",
+    "db:seed": "medusa seed",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@desigo/shared": "*",
+    "medusa-core": "^1.0.0",
+    "typeorm": "^0.3.0",
+    "reflect-metadata": "^0.1.13",
+    "express": "^4.18.0",
+    "redis": "^4.6.0",
+    "jsonwebtoken": "^9.0.0"
+  },
+  "devDependencies": {
+    "@desigo/config-eslint": "*",
+    "@desigo/config-tsconfig": "*",
+    "@desigo/config-jest": "*",
+    "@types/node": "^20.0.0",
+    "@types/express": "^4.17.0",
+    "ts-node": "^10.9.0"
+  }
+}
