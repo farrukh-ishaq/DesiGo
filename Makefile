@@ -1,89 +1,81 @@
-.PHONY: help install dev build test lint clean setup deploy-local
+.PHONY: help setup install dev dev-backend dev-frontend build build-backend build-frontend docker-dev docker-up docker-down logs clean reset
 
+# ---------- HELP ----------
 help:
-	@echo "DesiGo E-commerce Workspace"
+	@echo "🚀 DesiGo E-commerce Workspace (Yarn v1)"
 	@echo ""
-	@echo "Commands:"
-	@echo "  make setup       - Initial setup"
-	@echo "  make install     - Install all dependencies"
-	@echo "  make dev         - Start all services"
-	@echo "  make dev:backend - Start backend only"
-	@echo "  make dev:frontend - Start frontend only"
-	@echo "  make build       - Build all packages"
-	@echo "  make test        - Run tests"
-	@echo "  make lint        - Lint code"
-	@echo "  make clean       - Clean artifacts"
-	@echo "  make docker-up   - Start Docker services"
-	@echo "  make docker-down - Stop Docker services"
-	@echo "  make deploy-local - Deploy to local k8s"
+	@echo "📦 Development:"
+	@echo "  make setup               - Initial workspace setup"
+	@echo "  make install             - Install dependencies"
+	@echo "  make dev                 - Start backend + frontend"
+	@echo "  make dev-backend         - Start backend only"
+	@echo "  make dev-frontend        - Start frontend only"
+	@echo ""
+	@echo "🐳 Docker Commands:"
+	@echo "  make docker-up           - Start Postgres & Redis"
+	@echo "  make docker-dev          - Start backend + frontend in Docker"
+	@echo "  make docker-down         - Stop Docker services"
+	@echo "  make logs                - View Docker logs"
+	@echo ""
+	@echo "🧹 Cleanup:"
+	@echo "  make clean               - Remove build artifacts"
+	@echo "  make reset               - Delete node_modules and reinstall"
 
-setup:
-	@echo "🚀 Setting up DesiGo workspace..."
-	npm install
-	@echo "✅ Setup complete"
-
-install:
-	npm install
+# ---------- DEVELOPMENT ----------
+setup install:
+	@echo "🚀 Setting up workspace using Yarn..."
+	yarn install
+	@echo "✅ Setup complete!"
 
 dev:
-	npm run dev
+	@echo "🚀 Starting backend + frontend..."
+	concurrently "yarn workspace @desigo/backend dev" "yarn workspace @desigo/frontend dev"
 
-dev:backend:
-	npm run dev:backend
+dev-backend:
+	yarn workspace @desigo/backend dev
 
-dev:frontend:
-	npm run dev:frontend
+dev-frontend:
+	yarn workspace @desigo/frontend dev
 
-build:
-	npm run build
+build: build-backend build-frontend
 
-test:
-	npm run test
+build-backend:
+	yarn workspace @desigo/backend build
 
-lint:
-	npm run lint
+build-frontend:
+	yarn workspace @desigo/frontend build
 
-lint:fix:
-	npm run lint:fix
-
-type-check:
-	npm run type-check
-
-clean:
-	npm run clean
-
+# ---------- DOCKER ----------
 docker-up:
-	docker-compose up -d
+	@echo "🐳 Starting database services..."
+	docker-compose up -d postgres redis
+	@sleep 3
+	@echo "✅ Postgres & Redis ready!"
+
+docker-dev: docker-up
+	@echo "🚀 Starting backend + frontend in Docker..."
+	docker-compose up backend frontend
 
 docker-down:
+	@echo "🛑 Stopping Docker..."
 	docker-compose down
 
-deploy-local:
-	npm run deploy:local
-
-reset:
-	npm run reset
-
-.PHONY: db
-db: docker-up
-	@echo "✅ Database started at localhost:5432"
-
-.PHONY: format
-format:
-	npm run lint:fix
-
-.PHONY: check
-check: lint type-check test
-	@echo "✅ All checks passed"
-
-.PHONY: logs
 logs:
+	@echo "📋 Docker logs (CTRL+C to exit)..."
 	docker-compose logs -f
 
-.PHONY: status
-status:
-	@echo "📦 Workspace Status:"
-	@npm list --depth=0
-	@echo ""
-	@echo "🐳 Docker Services:"
-	@docker-compose ps
+# ---------- CLEANUP ----------
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf src/backend/dist
+	rm -rf src/frontend/.next
+	rm -rf src/frontend/out
+
+reset:
+	@echo "🧹 Removing node_modules..."
+	rm -rf node_modules
+	rm -rf src/backend/node_modules
+	rm -rf src/frontend/node_modules
+	@echo "📦 Reinstalling dependencies..."
+	yarn install
+	@echo "✅ Reset complete!"

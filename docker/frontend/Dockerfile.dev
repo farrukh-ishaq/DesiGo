@@ -1,16 +1,15 @@
 FROM node:18-alpine
 
-WORKDIR /app
+WORKDIR /workspace
 
-# Install dependencies
-COPY package*.json yarn.lock ./
+# Copy only manifests for dependency installation
+COPY package.json yarn.lock ./
+COPY src/frontend/package.json ./src/frontend/
+
+# Install workspace dependencies
 RUN yarn install
 
-# Copy source
-COPY . .
-
-# Expose port
+# Rely on mounted volumes for source code
 EXPOSE 3000
 
-# Development command
-CMD ["npm", "run", "dev"]
+CMD ["yarn", "workspace", "@desigo/frontend", "dev"]

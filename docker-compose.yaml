@@ -25,8 +25,6 @@ services:
     container_name: desigo-redis
     ports:
       - "6379:6379"
-    volumes:
-      - desigo_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -37,8 +35,8 @@ services:
 
   backend:
     build:
-      context: ./src/backend
-      dockerfile: ../../docker/backend/Dockerfile.dev
+      context: .
+      dockerfile: docker/backend/Dockerfile.dev
     container_name: desigo-backend
     ports:
       - "9000:9000"
@@ -46,11 +44,11 @@ services:
       DATABASE_URL: postgresql://desigo:desigo123@postgres:5432/desigo
       REDIS_URL: redis://redis:6379
       NODE_ENV: development
-      JWT_SECRET: desigo-jwt-secret-change-in-production
-      COOKIE_SECRET: desigo-cookie-secret-change-in-production
     volumes:
-      - ./src/backend:/app
-      - /app/node_modules
+      - .:/workspace
+      - /workspace/node_modules
+      - /workspace/src/backend/node_modules
+    working_dir: /workspace
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,17 +59,18 @@ services:
 
   frontend:
     build:
-      context: ./src/frontend
-      dockerfile: ../../docker/frontend/Dockerfile.dev
+      context: .
+      dockerfile: docker/frontend/Dockerfile.dev
     container_name: desigo-frontend
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_BACKEND_URL: http://localhost:9000
-      NEXT_PUBLIC_API_URL: http://localhost:9000
+      NEXT_PUBLIC_BACKEND_URL: http://backend:9000
     volumes:
-      - ./src/frontend:/app
-      - /app/node_modules
+      - .:/workspace
+      - /workspace/node_modules
+      - /workspace/src/frontend/node_modules
+    working_dir: /workspace
     depends_on:
       - backend
     networks:
@@ -79,8 +78,8 @@ services:
 
 volumes:
   desigo_postgres_data:
-  desigo_redis_data:
 
 networks:
   desigo-network:
     driver: bridge
+

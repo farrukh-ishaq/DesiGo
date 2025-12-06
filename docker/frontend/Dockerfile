@@ -1,34 +1,49 @@
+# ------------------------------
+# 1) Build Stage
+# ------------------------------
 FROM node:18-alpine AS builder
 
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy package files
-COPY package*.json ./
-COPY yarn.lock ./
+# Copy monorepo manifests
+COPY package.json yarn.lock ./
 
-# Install dependencies
+# Copy workspace packages (shared configs, utils, etc.)
+COPY packages ./packages
+
+# Copy frontend package manifest
+COPY src/frontend/package.json ./src/frontend/
+
+# Install deps for ALL workspaces (cached)
 RUN yarn install --frozen-lockfile
 
-# Copy source
-COPY . .
+# Copy frontend source
+COPY src/frontend ./src/frontend
 
-# Build
-RUN yarn build
+# Build Next.js standalone
+RUN yarn workspace @desigo/frontend build
 
-# Production image
-FROM node:18-alpine
+# ------------------------------
+# 2) Production Runtime Stage
+# ------------------------------
+FROM node:18-alpine AS runner
 
 WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy built application
-COPY --from=builder /app .
+# Copy Next.js standalone server
+COPY --from=builder /workspace/src/frontend/.next/standalone ./
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S desigo -u 1001
+# Copy static assets
+COPY --from=builder /workspace/src/frontend/public ./public
+COPY --from=builder /workspace/src/frontend/.next/static ./.next/static
+
+# Non-root user
+RUN addgroup -S nodejs -g 1001 && \
+    adduser -S desigo -u 1001 -G nodejs
 
 USER desigo
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

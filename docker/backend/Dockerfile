@@ -1,34 +1,44 @@
+# ------------------------------
+# 1) Build Stage
+# ------------------------------
 FROM node:18-alpine AS builder
 
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy package files
-COPY package*.json ./
-COPY yarn.lock ./
+# Copy workspace manifests
+COPY package.json yarn.lock ./
+COPY packages ./packages
+COPY src/backend/package.json ./src/backend/
 
-# Install dependencies
+# Install monorepo deps (cached)
 RUN yarn install --frozen-lockfile
 
-# Copy source
-COPY . .
+# Copy backend source
+COPY src/backend ./src/backend
 
-# Build
-RUN yarn build
+# Build backend
+RUN yarn workspace @desigo/backend build
 
-# Production image
-FROM node:18-alpine
+# ------------------------------
+# 2) Production Stage
+# ------------------------------
+FROM node:18-alpine AS production
 
 WORKDIR /app
 
-# Copy built application
-COPY --from=builder /app .
+# Copy built backend
+COPY --from=builder /workspace/src/backend/dist ./dist
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S desigo -u 1001
+# Copy only backend manifests
+COPY src/backend/package.json ./
 
+# Install only backend production dependencies
+RUN yarn install --frozen-lockfile --production
+
+# Add user
+RUN addgroup -S nodejs && adduser -S desigo -G nodejs
 USER desigo
 
 EXPOSE 9000
 
-CMD ["npm", "start"]
+CMD ["node", "dist/main.js"]
