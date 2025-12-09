@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: desigo
-  labels:
-    name: desigo
-    app: desigo-ecommerce

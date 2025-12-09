@@ -1,0 +1,10 @@
+npx medusa db:migrate
+
+backend run seed
+
+build BE and FE
+
+db: desigo
+test@desigo.com
+desigo123
+

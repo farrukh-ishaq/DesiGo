@@ -142,4 +142,3 @@ vite.config.ts.timestamp-*
 # senstive files
 .nvmrc
 .npmrc
-.npmrc
