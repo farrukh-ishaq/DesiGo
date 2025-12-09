@@ -1,44 +1,93 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
     image: postgres:15-alpine
     container_name: desigo-postgres
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_USER: desigo
       POSTGRES_PASSWORD: desigo123
       POSTGRES_DB: desigo
-    ports:
-      - "5432:5432"
+      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
-      - desigo_postgres_data:/var/lib/postgresql/data
+      - desigo-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U desigo"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - desigo-network
+    command: ["postgres", "-c", "log_statement=all"]
 
   redis:
     image: redis:7-alpine
     container_name: desigo-redis
     ports:
       - "6379:6379"
+    command: redis-server --appendonly yes
     volumes:
-      - desigo_redis_data:/data
+      - desigo-redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - desigo-network
+
+  backend:
+    build:
+      context: ./desigo
+      dockerfile: Dockerfile
+    image: desigo-backend:latest
+    container_name: desigo-backend
+    ports:
+      - "9000:9000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgres://desigo:desigo123@desigo-postgres:5432/medusa-desigo
+      REDIS_URL: redis://desigo-redis:6379
+      JWT_SECRET: supersecret
+      COOKIE_SECRET: supersecret
+      STORE_CORS: http://localhost:8000,http://desigo-storefront:8000,https://docs.medusajs.com
+      ADMIN_CORS: http://localhost:5173,http://localhost:9000,https://docs.medusajs.com
+      AUTH_CORS: http://localhost:5173,http://localhost:9000,http://localhost:8000,https://docs.medusajs.com
+      MEDUSA_ADMIN_ONBOARDING_TYPE: nextjs
+      MEDUSA_ADMIN_ONBOARDING_NEXTJS_DIRECTORY: ../desigo-storefront
+      PORT: 9000
+    volumes:
+      - ./desigo:/app/backend
+      - /app/backend/node_modules
+      - desigo-backend-data:/app/backend/.medusa
+
+  storefront:
+    build:
+      context: ./desigo-storefront
+      dockerfile: Dockerfile
+    image: desigo-storefront:latest
+    container_name: desigo-storefront
+    ports:
+      - "8000:8000"
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: development
+      MEDUSA_BACKEND_URL: http://desigo-backend:9000
+      NEXT_PUBLIC_BASE_URL: http://localhost:8000
+      NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: pk_ab6ee63ade97767acbb49e45932ca0f087d9b061b7a4fd01ec7f1ac94f5af141
+      NEXT_PUBLIC_DEFAULT_REGION: us
+      REVALIDATE_SECRET: supersecret
+      PORT: 8000
+    volumes:
+      - ./desigo-storefront:/app/storefront
+      - /app/storefront/node_modules
+      - /app/storefront/.next
 
 volumes:
-  desigo_postgres_data:
-  desigo_redis_data:
-
-networks:
-  desigo-network:
-    driver: bridge
+  desigo-postgres-data:
+  desigo-redis-data:
+  desigo-backend-data:
