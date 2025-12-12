@@ -63,6 +63,14 @@ services:
       - ./desigo:/app/backend
       - /app/backend/node_modules
       - desigo-backend-data:/app/backend/.medusa
+    # <-- ADD THIS HEALTHCHECK -->
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 
   storefront:
     build:
@@ -73,7 +81,8 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       NODE_ENV: development
       MEDUSA_BACKEND_URL: http://desigo-backend:9000
