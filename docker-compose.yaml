@@ -49,20 +49,17 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgres://desigo:desigo123@desigo-postgres:5432/medusa-desigo
+      DATABASE_URL: postgres://desigo:desigo123@desigo-postgres:5432/desigo
       REDIS_URL: redis://desigo-redis:6379
       JWT_SECRET: supersecret
       COOKIE_SECRET: supersecret
       STORE_CORS: http://localhost:8000,http://desigo-storefront:8000,https://docs.medusajs.com
       ADMIN_CORS: http://localhost:5173,http://localhost:9000,https://docs.medusajs.com
       AUTH_CORS: http://localhost:5173,http://localhost:9000,http://localhost:8000,https://docs.medusajs.com
-      MEDUSA_ADMIN_ONBOARDING_TYPE: nextjs
-      MEDUSA_ADMIN_ONBOARDING_NEXTJS_DIRECTORY: ../desigo-storefront
       PORT: 9000
     volumes:
-      - ./desigo:/app/backend
-      - /app/backend/node_modules
-      - desigo-backend-data:/app/backend/.medusa
+    - desigo-backend-data:/app/backend/.medusa
+
     # <-- ADD THIS HEALTHCHECK -->
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:9000/health || exit 1" ]
@@ -70,7 +67,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-
 
   storefront:
     build:
@@ -92,9 +88,8 @@ services:
       REVALIDATE_SECRET: supersecret
       PORT: 8000
     volumes:
-      - ./desigo-storefront:/app/storefront
-      - /app/storefront/node_modules
-      - /app/storefront/.next
+    - /app/storefront/node_modules
+    - /app/storefront/.next
 
 volumes:
   desigo-postgres-data:

@@ -6,64 +6,63 @@ WORKDIR /app/backend
 COPY package.json yarn.lock ./
 
 # Install dependencies
-RUN yarn install --frozen-lockfile --production=false
+RUN yarn install --legacy-peer-deps
 
 # Stage 2: Builder
 FROM node:20.8.0-alpine AS builder
 WORKDIR /app/backend
 
-# Copy node_modules from deps stage
+# Copy node_modules
 COPY --from=deps /app/backend/node_modules ./node_modules
 
 # Install system dependencies
 RUN apk add --no-cache python3 make g++ git bash netcat-openbsd
 
-# Copy all source files
+# Copy all backend files
 COPY . .
 
-# Create startup script
-RUN echo '#!/bin/sh\n\
-set -e\n\
-\n\
-echo "Desigo: Waiting for PostgreSQL..."\n\
-until nc -z desigo-postgres 5432; do\n\
-  sleep 1\n\
-done\n\
-\n\
-echo "Desigo: Waiting for Redis..."\n\
-until nc -z desigo-redis 6379; do\n\
-  sleep 1\n\
-done\n\
-\n\
-echo "Desigo: Running migrations..."\n\
-npx medusa db:migrate\n\
-\n\
-# Check if .medusa/seeded file exists\n\
-if [ ! -f .medusa/seeded ]; then\n\
-  echo "Desigo: Seeding database..."\n\
-  npx medusa seed --seed-file=\"./src/data/seed.json\"\n\
-  mkdir -p .medusa && touch .medusa/seeded\n\
-fi\n\
-\n\
-echo "Desigo: Building project..."\n\
-yarn build\n\
-\n\
-echo "Desigo: Starting Medusa backend..."\n\
-yarn dev\n\
-' > /app/backend/desigo-startup.sh && chmod +x /app/backend/desigo-startup.sh
+# Startup script
+RUN cat << 'EOF' > /app/backend/desigo-startup.sh
+#!/bin/sh
+set -e
+
+echo "Desigo: Waiting for PostgreSQL..."
+until nc -z desigo-postgres 5432; do sleep 1; done
+
+echo "Desigo: Waiting for Redis..."
+until nc -z desigo-redis 6379; do sleep 1; done
+
+echo "Desigo: Running migrations..."
+npx medusa db:migrate
+
+if [ ! -f .medusa/seeded ]; then
+  echo "Desigo: Seeding database..."
+  yarn seed
+  mkdir -p .medusa && touch .medusa/seeded
+fi
+
+echo "Desigo: Building project..."
+yarn build
+
+echo "Desigo: Starting Medusa backend..."
+yarn dev
+EOF
+
+RUN chmod +x /app/backend/desigo-startup.sh
 
 # Stage 3: Runner
 FROM node:20.8.0-alpine AS runner
 WORKDIR /app/backend
 
-# Install netcat and python3
 RUN apk add --no-cache python3 netcat-openbsd bash
 
-# Copy from builder stage
+# Copy built backend from builder
 COPY --from=builder /app/backend/node_modules ./node_modules
 COPY --from=builder /app/backend/package.json ./package.json
 COPY --from=builder /app/backend/yarn.lock ./yarn.lock
-COPY --from=builder /app/backend/dist ./dist
+COPY --from=builder /app/backend/src ./src
+COPY --from=builder /app/backend/tsconfig.json ./tsconfig.json
+COPY --from=builder /app/backend/.medusa ./.medusa
 COPY --from=builder /app/backend/desigo-startup.sh ./desigo-startup.sh
 COPY --from=builder /app/backend/medusa-config.js ./medusa-config.js
 COPY --from=builder /app/backend/.env* ./
@@ -72,5 +71,4 @@ COPY --from=builder /app/backend/.env* ./
 RUN yarn global add @medusajs/medusa-cli@latest
 
 EXPOSE 9000
-
 ENTRYPOINT ["/bin/sh", "./desigo-startup.sh"]
