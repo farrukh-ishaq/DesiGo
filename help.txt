@@ -8,3 +8,4 @@ db: desigo
 test@desigo.com
 desigo123
 
+npx medusa user -e admin@desigo.com -p supersecret

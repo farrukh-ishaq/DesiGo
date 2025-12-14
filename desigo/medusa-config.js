@@ -16,15 +16,6 @@ module.exports = defineConfig({
       authCors: process.env.AUTH_CORS,
       jwtSecret: process.env.JWT_SECRET || 'supersecret',
       cookieSecret: process.env.COOKIE_SECRET || 'supersecret',
-    },
-    admin: {
-      path: "/app",
-      backendUrl: "http://localhost:9000",
-      sources: {
-        admin: {
-          path: "./src/admin",
-        },
-      },
     }
   },
 });

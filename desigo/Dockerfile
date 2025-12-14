@@ -39,6 +39,8 @@ if [ ! -f .medusa/seeded ]; then
   echo "Desigo: Seeding database..."
   yarn seed
   mkdir -p .medusa && touch .medusa/seeded
+  echo "Desigo: Creating admin user..."
+  npx medusa user -e admin@desigo.com -p supersecret
 fi
 
 echo "Desigo: Building project..."
