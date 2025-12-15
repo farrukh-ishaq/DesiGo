@@ -9,3 +9,17 @@ test@desigo.com
 desigo123
 
 npx medusa user -e admin@desigo.com -p supersecret
+
+## Troubleshooting
+
+backend docker
+- node_modules out dates .vite
+- rm -rf node_modules/.vite
+
+yarn install
+
+yarn build
+
+yarn dev
+- restart backend
+
