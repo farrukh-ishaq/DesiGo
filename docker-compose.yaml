@@ -1,7 +1,9 @@
 version: "3.8"
 
 services:
-  # --- Infrastructure ---
+  # ------------------
+  # Infrastructure
+  # ------------------
   postgres:
     image: postgres:15-alpine
     container_name: desigo-postgres
@@ -11,7 +13,6 @@ services:
       POSTGRES_USER: desigo
       POSTGRES_PASSWORD: desigo123
       POSTGRES_DB: desigo
-      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - desigo-postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -19,7 +20,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: ["postgres", "-c", "log_statement=all"]
 
   redis:
     image: redis:7-alpine
@@ -35,7 +35,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # --- Applications ---
+  # ------------------
+  # Backend (Medusa)
+  # ------------------
   backend:
     build:
       context: ./desigo
@@ -51,17 +53,30 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
+      PORT: 9000
+
+      VITE_HOST: 0.0.0.0
+      VITE_PORT: 9000
+      VITE_HMR_PORT: 9000
+
       DATABASE_URL: postgres://desigo:desigo123@desigo-postgres:5432/desigo
       REDIS_URL: redis://desigo-redis:6379
+
       JWT_SECRET: supersecret
       COOKIE_SECRET: supersecret
-      STORE_CORS: "http://localhost:8000,http://storefront:8000"
-      ADMIN_CORS: "http://localhost:9000"  # Admin is on same origin!
-      AUTH_CORS: "http://localhost:8000,http://localhost:9000"
-      PORT: 9000
-    volumes:
-    - desigo-backend-data:/app/backend/.medusa
 
+      ADMIN_CORS: http://localhost:9000
+      AUTH_CORS: http://localhost:8000,http://localhost:9000
+      STORE_CORS: http://localhost:8000
+
+    volumes:
+      - ./desigo:/app/backend
+      - /app/backend/node_modules
+      - desigo-backend-data:/app/backend/.medusa
+
+  # ------------------
+  # Storefront (Next.js)
+  # ------------------
   storefront:
     build:
       context: ./desigo-storefront
@@ -75,17 +90,19 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: development
+      PORT: 8000
+
       MEDUSA_BACKEND_URL: http://desigo-backend:9000
       NEXT_PUBLIC_BASE_URL: http://localhost:8000
-      NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: pk_c606870f58df973ac16f6a9f5ca07d3e91313ef1bd4a13ea97bb190edb348dac
-      NEXT_PUBLIC_DEFAULT_REGION: us
+      NEXT_PUBLIC_DEFAULT_REGION: dk
+      NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: pk_6287e8f13567fa73f16a07f779f3cfff61f93466a4b941750c51ab3b2ec3d8f2
+
       REVALIDATE_SECRET: supersecret
-      PORT: 8000
     volumes:
-    - /app/storefront/node_modules
-    - /app/storefront/.next
+      - /app/storefront/node_modules
+      - /app/storefront/.next
 
 volumes:
   desigo-postgres-data:
-  desigo-redis-data:
   desigo-backend-data:
+  desigo-redis-data:

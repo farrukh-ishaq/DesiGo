@@ -5,9 +5,7 @@ loadEnv(process.env.NODE_ENV || 'development', process.cwd());
 module.exports = defineConfig({
   projectConfig: {
     databaseDriverOptions: process.env.NODE_ENV !== 'development'
-      ? {
-        connection: { ssl: { rejectUnauthorized: false } },
-      }
+      ? { connection: { ssl: { rejectUnauthorized: false } } }
       : {},
     databaseUrl: process.env.DATABASE_URL,
     http: {
@@ -16,6 +14,9 @@ module.exports = defineConfig({
       authCors: process.env.AUTH_CORS,
       jwtSecret: process.env.JWT_SECRET || 'supersecret',
       cookieSecret: process.env.COOKIE_SECRET || 'supersecret',
+      admin: {
+        backendUrl: process.env.ADMIN_BACKEND_URL || 'http://localhost:9000'
+      }
     }
   },
 });

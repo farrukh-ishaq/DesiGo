@@ -1,28 +1,21 @@
-# Stage 1: Dependencies
-FROM node:20.8.0-alpine AS deps
+FROM node:20.8.0-alpine
+
 WORKDIR /app/backend
+
+# System deps
+RUN apk add --no-cache python3 make g++ git bash netcat-openbsd
 
 # Copy package files
 COPY package.json yarn.lock ./
 
-# Install dependencies
+# Install deps
 RUN yarn install --legacy-peer-deps
 
-# Stage 2: Builder
-FROM node:20.8.0-alpine AS builder
-WORKDIR /app/backend
-
-# Copy node_modules
-COPY --from=deps /app/backend/node_modules ./node_modules
-
-# Install system dependencies
-RUN apk add --no-cache python3 make g++ git bash netcat-openbsd
-
-# Copy all backend files
+# Copy backend source
 COPY . .
 
 # Startup script
-RUN cat << 'EOF' > /app/backend/desigo-startup.sh
+RUN cat << 'EOF' > /usr/local/bin/desigo-startup.sh
 #!/bin/sh
 set -e
 
@@ -39,38 +32,20 @@ if [ ! -f .medusa/seeded ]; then
   echo "Desigo: Seeding database..."
   yarn seed
   mkdir -p .medusa && touch .medusa/seeded
+
   echo "Desigo: Creating admin user..."
   npx medusa user -e admin@desigo.com -p supersecret
 fi
-
-echo "Desigo: Building project..."
-yarn build
 
 echo "Desigo: Starting Medusa backend..."
 yarn dev
 EOF
 
-RUN chmod +x /app/backend/desigo-startup.sh
+RUN chmod +x /usr/local/bin/desigo-startup.sh
 
-# Stage 3: Runner
-FROM node:20.8.0-alpine AS runner
-WORKDIR /app/backend
-
-RUN apk add --no-cache python3 netcat-openbsd bash
-
-# Copy built backend from builder
-COPY --from=builder /app/backend/node_modules ./node_modules
-COPY --from=builder /app/backend/package.json ./package.json
-COPY --from=builder /app/backend/yarn.lock ./yarn.lock
-COPY --from=builder /app/backend/src ./src
-COPY --from=builder /app/backend/tsconfig.json ./tsconfig.json
-COPY --from=builder /app/backend/.medusa ./.medusa
-COPY --from=builder /app/backend/desigo-startup.sh ./desigo-startup.sh
-COPY --from=builder /app/backend/medusa-config.js ./medusa-config.js
-COPY --from=builder /app/backend/.env* ./
-
-# Install Medusa CLI globally
-RUN yarn global add @medusajs/medusa-cli@latest
+# 🔥 THIS FIXES YOUR ERROR
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=5 \
+  CMD nc -z localhost 9000 || exit 1
 
 EXPOSE 9000
-ENTRYPOINT ["/bin/sh", "./desigo-startup.sh"]
+ENTRYPOINT ["/bin/sh", "/usr/local/bin/desigo-startup.sh"]
