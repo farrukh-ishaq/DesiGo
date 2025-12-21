@@ -28,7 +28,7 @@ function checkEnvVariables() {
 
     console.error(
       c.yellow(
-        "\nPlease set these variables in your .env file or environment before starting the application.\n"
+        "\nPlease set these variables in your .env.local file or environment before starting the application.\n"
       )
     )
 
