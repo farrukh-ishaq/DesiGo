@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: desigo
+  labels:
+    app: backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: desigo-backend:latest
+          # Or use your Docker Hub/Container Registry image
+          # image: yourregistry/desigo-backend:latest
+          ports:
+            - containerPort: 9000
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: NODE_ENV
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: PORT
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: REDIS_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: JWT_SECRET
+            - name: COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: COOKIE_SECRET
+            - name: ADMIN_CORS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: ADMIN_CORS
+            - name: AUTH_CORS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: AUTH_CORS
+            - name: STORE_CORS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: STORE_CORS
+          volumeMounts:
+            - name: backend-storage
+              mountPath: /app/backend/.medusa
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9000
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9000
+            initialDelaySeconds: 30
+            periodSeconds: 5
+      volumes:
+        - name: backend-storage
+          persistentVolumeClaim:
+            claimName: backend-pvc
