@@ -23,3 +23,17 @@ yarn build
 yarn dev
 - restart backend
 
+---
+# Start port forwarding in background
+kubectl port-forward -n desigo svc/storefront-service 8000:8000 &
+kubectl port-forward -n desigo svc/backend-service 9000:9000 &
+
+# Access both:
+# - Storefront: http://localhost:8000
+# - Backend: http://localhost:9000
+
+# To stop port forwarding:
+# fg  # Bring to foreground
+# Ctrl+C  # Stop
+# OR kill the jobs
+---

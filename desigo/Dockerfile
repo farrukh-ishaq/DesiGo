@@ -36,6 +36,11 @@ if [ ! -f .medusa/seeded ]; then
   echo "Desigo: Creating admin user..."
   npx medusa user -e admin@desigo.com -p supersecret
 fi
+echo "Deisigo dependencies installed"
+yarn install
+
+echo "Desigo: Building"
+yarn build
 
 echo "Desigo: Starting Medusa backend..."
 yarn dev

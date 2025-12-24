@@ -1,0 +1,342 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: desigo
+  labels:
+    name: desigo
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secrets
+  namespace: desigo
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: "desigo123"
+  JWT_SECRET: "supersecret"
+  COOKIE_SECRET: "supersecret"
+  REVALIDATE_SECRET: "supersecret"
+  NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY: "pk_6287e8f13567fa73f16a07f779f3cfff61f93466a4b941750c51ab3b2ec3d8f2"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: desigo
+data:
+  NODE_ENV: "development"
+  PORT: "9000"
+  DATABASE_URL: "postgres://desigo:desigo123@postgres-service:5432/desigo"
+  REDIS_URL: "redis://redis-service:6379"
+  ADMIN_CORS: "http://backend-service:9000"
+  AUTH_CORS: "http://storefront-service:8000,http://backend-service:9000"
+  STORE_CORS: "http://storefront-service:8000"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storefront-config
+  namespace: desigo
+data:
+  NODE_ENV: "development"
+  PORT: "8000"
+  MEDUSA_BACKEND_URL: "http://backend-service:9000"
+  NEXT_PUBLIC_BASE_URL: "http://localhost:8000"
+  NEXT_PUBLIC_DEFAULT_REGION: "dk"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: desigo
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "desigo"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: "desigo"
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+      volumes:
+        - name: postgres-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: desigo
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: desigo
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          command: ["redis-server", "--appendonly", "yes"]
+          volumeMounts:
+            - name: redis-storage
+              mountPath: /data
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+      volumes:
+        - name: redis-storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: desigo
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: desigo
+  labels:
+    app: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: desigo-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9000
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: NODE_ENV
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: PORT
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: REDIS_URL
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: JWT_SECRET
+            - name: COOKIE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: COOKIE_SECRET
+            - name: ADMIN_CORS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: ADMIN_CORS
+            - name: AUTH_CORS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: AUTH_CORS
+            - name: STORE_CORS
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: STORE_CORS
+          volumeMounts:
+            - name: backend-storage
+              mountPath: /app/backend/.medusa
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+      volumes:
+        - name: backend-storage
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storefront
+  namespace: desigo
+  labels:
+    app: storefront
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storefront
+  template:
+    metadata:
+      labels:
+        app: storefront
+    spec:
+      containers:
+        - name: storefront
+          image: desigo-storefront:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: storefront-config
+                  key: NODE_ENV
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: storefront-config
+                  key: PORT
+            - name: MEDUSA_BACKEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: storefront-config
+                  key: MEDUSA_BACKEND_URL
+            - name: NEXT_PUBLIC_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: storefront-config
+                  key: NEXT_PUBLIC_BASE_URL
+            - name: NEXT_PUBLIC_DEFAULT_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: storefront-config
+                  key: NEXT_PUBLIC_DEFAULT_REGION
+            - name: REVALIDATE_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: REVALIDATE_SECRET
+            - name: NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: desigo
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 9000
+      targetPort: 9000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storefront-service
+  namespace: desigo
+spec:
+  selector:
+    app: storefront
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: desigo-ingress
+  namespace: desigo
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: storefront-service
+                port:
+                  number: 8000
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 9000
