@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "🚀 Final Deployment - DesiGo with emptyDir"
-echo "=========================================="
+echo "🚀 Deploying DesiGo Final Version"
+echo "================================"
 
 cd /Users/farrukhishaq/Documents/DesiGo
 
@@ -16,7 +16,7 @@ kubectl delete namespace desigo --ignore-not-found=true
 sleep 5
 
 echo ""
-echo "3. Applying working YAML..."
+echo "3. Applying final YAML..."
 kubectl apply -f k8s/all-in-one.yaml
 
 echo ""
@@ -27,41 +27,4 @@ sleep 30
 
 echo ""
 echo "5. Checking status..."
-for i in {1..6}; do
-    echo ""
-    echo "Check #$i:"
-    kubectl get pods -n desigo
-
-    RUNNING=$(kubectl get pods -n desigo --no-headers 2>/dev/null | grep -c "Running" || echo 0)
-    TOTAL=$(kubectl get pods -n desigo --no-headers 2>/dev/null | wc -l || echo 0)
-
-    if [ "$TOTAL" -eq 4 ] && [ "$RUNNING" -eq 4 ]; then
-        echo ""
-        echo "🎉 All 4 pods are running!"
-        break
-    fi
-
-    if [ "$i" -lt 6 ]; then
-        echo "Waiting 30 seconds... ($RUNNING/$TOTAL running)"
-        sleep 30
-    fi
-done
-
-echo ""
-echo "6. Final status:"
-kubectl get all -n desigo
-
-echo ""
-echo "📋 To access applications:"
-echo "=========================="
-echo ""
-echo "Run port forwarding in separate terminals:"
-kubectl port-forward -n desigo svc/storefront-service 8000:8000 &
-echo "  → Storefront: http://localhost:8000"
-echo ""
-kubectl port-forward -n desigo svc/backend-service 9000:9000 &
-echo "  → Backend API: http://localhost:9000"
-echo ""
-echo "Check logs if needed:"
-echo "  kubectl logs -n desigo deployment/backend -f"
-echo "  kubectl logs -n desigo deployment/storefront -f"
+kubectl get pods -n desigo -w
